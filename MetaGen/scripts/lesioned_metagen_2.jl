@@ -23,7 +23,7 @@ dict = dict[51:100]
 
 ################################################################################
 #num_videos = config["num_videos"]
-num_videos = 50
+num_videos = config["num_videos"]
 num_frames = config["num_frames"]
 threshold = config["threshold"]
 
