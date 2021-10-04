@@ -56,8 +56,8 @@ end
 #the fa and m, and the gt_fa, gt_m
 function make_MSE(data::DataFrame)
 
-    n_possible_objects = convert(Int64,(size(df)[2]-1)/4)
-    num_particles = size(df)[1]
+    n_possible_objects = convert(Int64,(size(data)[2]-1)/4)
+    num_particles = size(data)[1]
 
     weights = data[!, "weights"]
     v_matrixes = Array{Matrix{Float64}}(undef, num_particles)
@@ -129,7 +129,7 @@ function MSE_and_confidence_interval(data::DataFrame, gt_data::DataFrame, num_pa
             end
             push!(df, new_row)
         end
-
+        
         new_row_ci = []
         MSE = make_MSE(df)
         push!(new_row_ci, MSE)

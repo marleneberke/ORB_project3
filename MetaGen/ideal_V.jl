@@ -8,21 +8,23 @@ using Pipe: @pipe
 include("helper_function.jl")
 include("scripts/useful_functions.jl")
 
-path = "../../scratch_work_07_16_21/09_18/shuffle_0/"
+path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/09_30/dataset_many_obj_models/retinanet/shuffle_0_retinanet/"
 
 #could equally use input dictionary
 #dict = @pipe "output.json" |> open |> read |> String |> JSON.parse
 dict = @pipe (path * "output.json") |> open |> read |> String |> JSON.parse
 
 
-num_videos = 50
+num_videos = 100
 num_frames = 20
 threshold = 0.0
 top_n = 5
 
-params = Video_Params(n_possible_objects = 5)
+office_subset = ["chair", "bowl", "umbrella", "potted plant", "tv"]
+
+params = Video_Params(n_possible_objects = length(office_subset))
 receptive_fields = make_receptive_fields(params)
-objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold, top_n)
+objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, office_subset, num_videos, num_frames, threshold, top_n)
 
 ###############################################################################
 #Set up the output file

@@ -17,7 +17,8 @@ COCO_CLASSES = ["person", "bicycle", "car", "motorcycle",
 
 #for now, remove books
 #office_subset = ["chair", "keyboard", "laptop", "dining table", "potted plant", "cell phone", "bottle"]
-office_subset = ["dining table", "microwave", "backpack", "bowl", "couch"]
+#office_subset = ["dining table", "microwave", "backpack", "bowl", "couch"]
+#office_subset = ["chair", "bowl"]
 
 # dictionary_scenenet_to_office = Dict("chair" => "chair",
 # "straightchair" => "chair", "swivelchair" => "chair", "windsorchair" => "chair",
@@ -32,7 +33,8 @@ office_subset = ["dining table", "microwave", "backpack", "bowl", "couch"]
 
 #dictionary_gt_to_office = Dict("chair" => "chair", "sofa" => "couch")
 #dictionary_gt_to_office = Dict("chair" => "chair", "microwave" => "microwave", "sofa" => "couch")
-dictionary_gt_to_office = Dict("table" => "dining table", "microwave" => "microwave", "backpack" => "backpack", "bowl" => "bowl", "sofa" => "couch")
+#dictionary_gt_to_office = Dict("table" => "dining table", "microwave" => "microwave", "backpack" => "backpack", "bowl" => "bowl", "sofa" => "couch")
+dictionary_gt_to_office = Dict("chair" => "chair", "bowl" => "bowl", "plant" => "potted plant", "tv" => "tv", "umbrella" => "umbrella")
 
 
 
@@ -144,6 +146,7 @@ end
 ################################################################################
 #parse the dataframe and return a dataframe of world states
 function new_parse_data(data::DataFrame, num_videos::Int64, num_particles::Int64)
+	println("num_videos ", num_videos)
 	world_states = Array{Any}(undef, num_videos) #length(online_names) should be the same as num_videos
 	for i = 1:num_videos
         world_states[i] = eval(Meta.parse(data[i, "inferred_best_world_state"])) #1 is for the first row. we only have 1 row
@@ -242,7 +245,7 @@ function jacccard_sim_2D(num_videos::Int64, num_frames::Int64, params::Video_Par
 
     receptive_fields = make_receptive_fields(params)
 
-    objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold, top_n)
+    objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, office_subset, num_videos, num_frames, threshold, top_n)
 
     sim_NN = zeros(num_videos)
     for v = 1:num_videos
@@ -263,7 +266,7 @@ function jacccard_sim_2D(num_videos::Int64, num_frames::Int64, params::Video_Par
 
     receptive_fields = make_receptive_fields(params)
 
-    objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold)
+    objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, office_subset, num_videos, num_frames, threshold)
 
     sim = zeros(num_videos)
     for v = 1:num_videos
