@@ -72,8 +72,8 @@ println("start lesioned")
 
 traces, inferred_world_states, v = unfold_particle_filter(v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
 	input_objects_observed, input_camera_trajectories, params, lesion_V_file, lesion_ws_file, order)
-close(retro_V_file)
-close(retro_ws_file)
+close(lesion_V_file)
+close(lesion_ws_file)
 
 println("done with pf for lesioned")
 
