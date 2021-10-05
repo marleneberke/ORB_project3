@@ -66,12 +66,12 @@ input_camera_trajectories = camera_trajectories
 lesion_V_file = open(output_dir * "/lesion_V.csv", "w")
 file_header_V(lesion_V_file, params)
 lesion_ws_file = open(output_dir * "/lesion_ws.csv", "w")
-file_header_ws(retro_ws_file, params, num_particles)
+file_header_ws(lesion_ws_file, params, num_particles)
 
 println("start lesioned")
 
 traces, inferred_world_states, v = unfold_particle_filter(v, num_particles, mcmc_steps_outer, mcmc_steps_inner,
-	input_objects_observed, input_camera_trajectories, params, lesioned_V_file, lesioned_ws_file, order)
+	input_objects_observed, input_camera_trajectories, params, lesion_V_file, lesion_ws_file, order)
 close(retro_V_file)
 close(retro_ws_file)
 
