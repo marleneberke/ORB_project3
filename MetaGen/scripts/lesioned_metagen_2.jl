@@ -58,7 +58,7 @@ end
 #Lesioned MetaGen
 
 #training set and test set
-order = 1:50
+order = collect(1:50)
 input_objects_observed = objects_observed
 input_camera_trajectories = camera_trajectories
 
