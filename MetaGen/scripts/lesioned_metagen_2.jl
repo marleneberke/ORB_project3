@@ -59,8 +59,8 @@ end
 
 #training set and test set
 order = 1:50
-input_objects_observed = vcat(objects_observed[order, :])
-input_camera_trajectories = vcat(camera_trajectories[order, :])
+input_objects_observed = objects_observed
+input_camera_trajectories = camera_trajectories
 
 #Set up the output file
 lesion_V_file = open(output_dir * "/lesion_V.csv", "w")
