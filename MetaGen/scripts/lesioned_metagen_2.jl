@@ -103,7 +103,7 @@ println("done with pf for lesioned metagen")
 #for writing an output file for a demo using Retro MetaGen.
 
 #undor re-ordering of inferred_world_states
-inferred_world_states = inferred_world_states[order]
+#inferred_world_states = inferred_world_states[order]
 
 ###### add to dictionary
 out = write_to_dict(dict, camera_trajectories, inferred_world_states, num_videos, num_frames)
