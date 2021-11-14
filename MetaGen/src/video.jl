@@ -13,7 +13,7 @@
 # possible_hallucination_map = Gen.Map(gen_possible_hallucination)
 
 function within_frame(p::Detection2D)
-    p[1] >= 0 && p[1] <= 256 && p[2] >= 0 && p[2] <= 256 #hard-codded frame size because I can't figure out how to use two arguments and filter
+    p[1] >= 0 && p[1] <= 1280 && p[2] >= 0 && p[2] <= 720 #hard-codded frame size because I can't figure out how to use two arguments and filter
 end
 
 #check if p1 and p2 are withing radius r of each other. Euclidean space
@@ -99,6 +99,30 @@ uniform distribution
     return camera_params
 end
 
+# """
+#     gen_camera(params::Video_Params)
+#
+# Places the camera at 0,0,0 and samples the camera focus from a Gaussian 5,0,0
+# with sd (1, 2, 2)
+# """
+# @gen (static) function gen_camera_imagenet(params::Video_Params)
+#     #camera location
+#     camera_location_x = 0.00000001
+#     camera_location_y = 0.000000001
+#     camera_location_z = 0.00000000001
+#
+#     #camera focus focus
+#     camera_focus_x = @trace(gaussian(5.0000000000001, 1.0), :camera_focus_x)
+#     camera_focus_y = @trace(gaussian(0.00000000000001, 2.0), :camera_focus_y)
+#     camera_focus_z = @trace(gaussian(0.00000000000001, 2.0), :camera_focus_z)
+#
+#     camera_params = Camera_Params(Coordinate(camera_location_x,camera_location_y,camera_location_z), Coordinate(camera_focus_x,camera_focus_y,camera_focus_z))
+#     return camera_params
+# end
+
+
+
+
 """
 Generates the next frame given the current frame.
 
@@ -108,7 +132,7 @@ state is Tuple{Array{Any,1}, Matrix{Int64}, Matrix{Int64}}
     ####Update 2D real objects
 
     ####Update camera location and pointing
-    camera_params = @trace(gen_camera(params), :camera)
+    camera_params = @trace(gen_camera_imagenet)(params), :camera)
 
     #get locations of the objects in the image. basically want to input the list
     #of observations_3D [(x,y,z,cat), (x,y,z,cat)] and get out the [(x_image,y_image,cat)]

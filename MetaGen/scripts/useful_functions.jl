@@ -240,20 +240,32 @@ function make_observations_office(dict::Array{Any,1}, receptive_fields::Vector{R
             #temp_sorted_into_rfs = map(rf -> filter(p -> within(p, rf), temp), receptive_fields)
             objects_observed[v, f] = convert(Array{Detection2D}, temp)
 
-            #camera trajectory
-            # x = dict[v]["views"][f]["camera"][1]
-            # y = dict[v]["views"][f]["camera"][2]
-            # z = dict[v]["views"][f]["camera"][3]
-            x = dict[v]["views"][f]["camera"]["x"]
-            y = dict[v]["views"][f]["camera"]["y"]
-            z = dict[v]["views"][f]["camera"]["z"]
-            #focus
-            #f_x = dict[v]["views"][f]["lookat"][1]
-            #f_y = dict[v]["views"][f]["lookat"][2]
-            #f_z = dict[v]["views"][f]["lookat"][3]
-            f_x = dict[v]["views"][f]["lookat"]["x"]
-            f_y = dict[v]["views"][f]["lookat"]["y"]
-            f_z = dict[v]["views"][f]["lookat"]["z"]
+            if haskey(dict[v]["views"][f], "camera")
+                #camera trajectory
+                # x = dict[v]["views"][f]["camera"][1]
+                # y = dict[v]["views"][f]["camera"][2]
+                # z = dict[v]["views"][f]["camera"][3]
+                x = dict[v]["views"][f]["camera"]["x"]
+                y = dict[v]["views"][f]["camera"]["y"]
+                z = dict[v]["views"][f]["camera"]["z"]
+                #focus
+                #f_x = dict[v]["views"][f]["lookat"][1]
+                #f_y = dict[v]["views"][f]["lookat"][2]
+                #f_z = dict[v]["views"][f]["lookat"][3]
+                f_x = dict[v]["views"][f]["lookat"]["x"]
+                f_y = dict[v]["views"][f]["lookat"]["y"]
+                f_z = dict[v]["views"][f]["lookat"]["z"]
+            else
+                x = 0.00001
+                y = 0.000001
+                z = 0.0000001
+                f_x = 2.000000001
+                f_y = 0.00000000001
+                f_z = 0.0000000000001
+
+            end
+
+
             c = Camera_Params(camera_location = Coordinate(x,y,z), camera_focus = Coordinate(f_x,f_y,f_z))
             camera_trajectories[v, f] = c
 

@@ -42,8 +42,8 @@ objects is a list of Detection2Ds. ps is a vector of probabilities indexed by ob
 """
 function to_elements_real(objects::Vector{Detection2D}, miss_rates::Vector{Real})
     #will probably need to redo this stuff
-    sd_x = 40. #might work????
-    sd_y = 40.
+    sd_x = 150.#40. #might work????
+    sd_y = 150.#40.
     cov = [sd_x 0.; 0. sd_y;]
 
     n = length(objects)
