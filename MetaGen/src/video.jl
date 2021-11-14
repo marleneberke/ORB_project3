@@ -132,7 +132,7 @@ state is Tuple{Array{Any,1}, Matrix{Int64}, Matrix{Int64}}
     ####Update 2D real objects
 
     ####Update camera location and pointing
-    camera_params = @trace(gen_camera)(params), :camera)
+    camera_params = @trace(gen_camera(params), :camera)
 
     #get locations of the objects in the image. basically want to input the list
     #of observations_3D [(x,y,z,cat), (x,y,z,cat)] and get out the [(x_image,y_image,cat)]
