@@ -339,7 +339,7 @@ end
 
 ################################################################################
 
-function within_frame(x::Float64, y::Float64)
+function within_frame(x::Float64, y::Float64) #1280, 720 for imagenet
     x >= 0 && x <= 256 && y >= 0 && y <= 256 #hard-codded frame size
 end
 

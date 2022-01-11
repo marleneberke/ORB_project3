@@ -10,22 +10,22 @@ using Bootstrap
 
 include("helper_function.jl")
 
-#path = "../Data/20particles_threshold64_18945877/"
-path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/09_30/dataset_1_obj_model2/faster_rcnn/shuffle_1_faster_rcnn/"
+path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/01_09/detr250/shuffle_0_detr/"
+#path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/09_30/dataset_1_obj_model2_iclr/detr/shuffle_3_detr/"
+
 
 online_data = CSV.read(path * "online_ws.csv", DataFrame; delim = "&")
 retro_data = CSV.read(path * "retro_ws.csv", DataFrame; delim = "&")
-#lesioned_data = CSV.read(path * "lesioned_ws.csv", DataFrame; delim = "&")
+#lesioned_data = CSV.read(path * "lesion_ws.csv", DataFrame; delim = "&")
 
 ################################################################################
 #could equally use input or output dictionary
+#dict = @pipe path * "../data_labelled_detr.json" |> open |> read |> String |> JSON.parse
 dict = @pipe path * "output.json" |> open |> read |> String |> JSON.parse
 #dict = @pipe "../../scratch_work_07_16_21/08_20/data_labelled.json" |> open |> read |> String |> JSON.parse
 
-# if shuffle == 1 #delete row 26
-#     online_data = online_data[[1:25; 27:51], :]
-#     retro_data = retro_data[[1:25; 27:101], :]
-# end
+online_data = sort!(online_data, :video_number) #undoes whatever shuffle happened
+retro_data = sort!(retro_data, :video_number)
 
 
 num_videos = 100
@@ -35,14 +35,15 @@ num_particles = 100
 
 num_training_videos = 50
 
-fitted_threshold = 0.0
+fitted_threshold = 0.20
+threshold = 0.0
 top_n = 5
 
 office_subset = ["chair", "bowl", "umbrella", "potted plant", "tv"]
 
 #reorder the dictionary to match the order run
-order = retro_data[!, "video_number"]
-dict = dict[order]
+#order = retro_data[!, "video_number"]
+#dict = dict[order]
 
 ground_truth_world_states = get_ground_truth(dict, num_videos)
 
@@ -71,9 +72,10 @@ sim_retrospective, sim_retrospective_lower_ci, sim_retrospective_upper_ci = add_
 ################################################################################
 #make new dataframe. just has stuff on the similarity.
 
-new_df = DataFrame(
-    order_run = retro_data[!, "order_run"],
-    video = retro_data[!, "video_number"],
+new_df = DataFrame(video = 1:num_videos,
+    #order_run = retro_data[!, "order_run"],
+    #video = retro_data[!, "video_number"],
+    #video = lesioned_data[!, "video_number"],
     sim_online = vcat(sim_online, fill(NaN, num_videos - num_training_videos)),
     sim_online_lower_ci = vcat(sim_online_lower_ci, fill(NaN, num_videos - num_training_videos)),
     sim_online_upper_ci = vcat(sim_online_upper_ci, fill(NaN, num_videos - num_training_videos)),
@@ -110,18 +112,19 @@ sim_NN_fitted = jacccard_sim_2D(num_videos, num_frames, params, dict, ground_tru
 
 sim_NN_input = jacccard_sim_2D(num_videos, num_frames, params, dict, ground_truth_world_states, 0.0, top_n)
 
-new_df = DataFrame(
-    order_run = retro_data[!, "order_run"],
-    video = retro_data[!, "video_number"],
+new_df = DataFrame(video = 1:num_videos,
+    #order_run = retro_data[!, "order_run"],
+    #video = retro_data[!, "video_number"],
+    #video = lesioned_data[!, "video_number"],
     sim_online = vcat(sim_online, fill(NaN, num_videos - num_training_videos)),
     sim_online_lower_ci = vcat(sim_online_lower_ci, fill(NaN, num_videos - num_training_videos)),
     sim_online_upper_ci = vcat(sim_online_upper_ci, fill(NaN, num_videos - num_training_videos)),
     sim_retrospective = sim_retrospective,
     sim_retrospective_lower_ci = sim_retrospective_lower_ci,
     sim_retrospective_upper_ci = sim_retrospective_upper_ci,
-    #sim_lesioned = sim_lesioned,
-    #sim_lesioned_lower_ci = sim_lesioned_lower_ci,
-    #sim_lesioned_upper_ci = sim_lesioned_upper_ci,
+    # sim_lesioned = sim_lesioned,
+    # sim_lesioned_lower_ci = sim_lesioned_lower_ci,
+    # sim_lesioned_upper_ci = sim_lesioned_upper_ci,
     sim_NN_fitted = sim_NN_fitted,
     sim_NN_input = sim_NN_input)
 
