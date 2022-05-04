@@ -26,7 +26,7 @@ function get_rfs(rec_field::Receptive_Field, real::Vector{Detection2D}, params::
     #for real objects
     misses = v[:,2]
     #hitses = fill(hits, length(real))
-    real_objects_2D = to_elements_real(real, misses)
+    real_objects_2D = to_elements_real(real, misses, params)
 
 
     #println("imagined_objects_2D ", imagined_objects_2D)
@@ -40,14 +40,13 @@ end
 """
 objects is a list of Detection2Ds. ps is a vector of probabilities indexed by object category
 """
-function to_elements_real(objects::Vector{Detection2D}, miss_rates::Vector{Real})
-    #will probably need to redo this stuff
-    sd_x = 150.#40. #might work????
-    sd_y = 150.#40.
+function to_elements_real(objects::Vector{Detection2D}, miss_rates::Vector{Real}, params::Video_Params)
+    sd_x = params.sigma#40.
+    sd_y = params.sigma#40.
     cov = [sd_x 0.; 0. sd_y;]
 
     n = length(objects)
-    objects_2D = Vector{GeometricElement{Detection2D}}(undef, n) #no idea if that will work
+    objects_2D = Vector{GeometricElement{Detection2D}}(undef, n)
     for i = 1:n
         x = objects[i][1]#trying to get x from Detection2D Tuple
         y = objects[i][2]

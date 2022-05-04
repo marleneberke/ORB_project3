@@ -11,20 +11,21 @@ Base.@kwdef struct Video_Params
     n_possible_objects = 8
     possible_objects::Vector{Int64} = collect(1:n_possible_objects)
     probs_possible_objects = collect(ones(n_possible_objects)./n_possible_objects)
-    x_min::Float64 = -10#-13/2
-    y_min::Float64 = -10#0
-    z_min::Float64 = -10#-13/2
-    x_max::Float64 = 10#13/2
-    y_max::Float64 = 10#3
-    z_max::Float64 = 10#13/2
+    x_min::Float64 = -13/2
+    y_min::Float64 = 0
+    z_min::Float64 = -13/2
+    x_max::Float64 = 13/2
+    y_max::Float64 = 3
+    z_max::Float64 = 13/2
     delta = 1 #sd for gaussian #midpoint of logistic curve for prior over distance between objects
     #k = 10. #slope of logistic curve for prior over distance between objects
     num_receptive_fields::Int64 = 1
     #camera parameters that don't change
-    image_dim_x::Int64 = 1280#256
-    image_dim_y::Int64 = 720#256
-    horizontal_FoV::Float64 = 55 #55
-    vertical_FoV::Float64 = 31 #55
+    image_dim_x::Int64 = 256#1280#256
+    image_dim_y::Int64 = 256#720#256
+    horizontal_FoV::Float64 = 55#55 #55
+    vertical_FoV::Float64 = 55#31 #55
+    sigma::Float64 = 40#For MetaGen's prior over the noise in pixel space of detections
 end
 
 "Parametrizes the state of the camera, which changes within a scene"

@@ -23,10 +23,12 @@ array for each frame and array for each receptive field and array for those dete
         mcmc_steps_inner::Int64,
         objects_observed::Matrix{Array{Detection2D}},
         camera_trajectories::Matrix{Camera_Params},
+        #camera_trajectories::Union{Matrix{Camera_Params}, Nothing},
         params::Video_Params,
         V_file::IOStream, ws_file::IOStream, order::Vector{Int64})
 
         lesioned = !isnothing(v_matrix)
+        #no_camera = isnothing(camera_trajectories)
 
         init_obs = Gen.choicemap()
 
@@ -64,6 +66,7 @@ array for each frame and array for each receptive field and array for those dete
                 obs = Gen.choicemap()
 
                 for f = 1:num_frames
+                    #if !no_camera
                     camera_params = camera_trajectories[v, f]
                     obs[:videos => v => :frame_chain => f => :camera => :camera_location_x] = camera_params.camera_location.x
                     obs[:videos => v => :frame_chain => f => :camera => :camera_location_y] = camera_params.camera_location.y
@@ -71,6 +74,7 @@ array for each frame and array for each receptive field and array for those dete
                     obs[:videos => v => :frame_chain => f => :camera => :camera_focus_x] = camera_params.camera_focus.x
                     obs[:videos => v => :frame_chain => f => :camera => :camera_focus_y] = camera_params.camera_focus.y
                     obs[:videos => v => :frame_chain => f => :camera => :camera_focus_z] = camera_params.camera_focus.z
+                    #end
 
                     #for rf = 1:num_receptive_fields
                     #println("objects_observed[v, f][rf] ", objects_observed[v, f][rf])
@@ -227,6 +231,10 @@ array for each frame and array for each receptive field and array for those dete
                     trace = perturb_whole_v_matrix_mh(trace, v, n)
                 end
             end
+
+            # if no_camera
+            #     trace = perturb_camera(trace, )
+            # end
             # println("lambda_fa 2 ", trace[:v_matrix => (:lambda_fa, 2)])
             # println("miss 2 ", trace[:v_matrix => (:miss_rate, 2)])
             # println("lambda_fa 5 ", trace[:v_matrix => (:lambda_fa, 5)])

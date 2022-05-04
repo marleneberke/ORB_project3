@@ -120,16 +120,21 @@ function get_vertical_plane(camera_params::Camera_Params)
     p1 = camera_params.camera_location
     p2 = camera_params.camera_focus
     p3 = Coordinate(p1.x, p1.y+1, p1.z)
+    #println("p3", p3)
     (a, b, c) = get_abc_plane(p1, p2, p3)
+    #println("a", a)
     #want normal to be be on the "righthand" side of camera
     #x and z component of vec for the direction camera is pointing
     camera_pointing_x = camera_params.camera_focus.x-camera_params.camera_location.x
     camera_pointing_y = camera_params.camera_focus.y-camera_params.camera_location.y
     camera_pointing_z = camera_params.camera_focus.z-camera_params.camera_location.z
 
+
     result = cross([a, b, c], [camera_pointing_x, camera_pointing_y, camera_pointing_z])
     #if y-component < 0, multiply by -1
+    #println("result ", result)
     to_return = result[2] < 0 ? (-a, -b, -c) : (a, b, c)
+    #println("to_return ", to_return)
     return(to_return)
 end
 
@@ -145,8 +150,10 @@ pointing upwards.
 """
 function get_horizontal_plane(camera_params::Camera_Params, a_vertical, b_vertical, c_vertical)
     p1 = camera_params.camera_location
+    #println("p1 ", p1)
     p2 = camera_params.camera_focus
     p3 = Coordinate(p1.x+a_vertical, p1.y+b_vertical, p1.z+c_vertical) #adding normal vector (a, b, c) to the point to make a third point on the horizontal plane
+    #println("p3 ", p3)
     (a, b, c) = get_abc_plane(p1, p2, p3)
     #make sure that this normal is upright, so b > 0
     if b < 0
@@ -168,6 +175,7 @@ determined by the 3 points.
 function get_abc_plane(p1::Coordinate, p2::Coordinate, p3::Coordinate)
     #using Method 2 from wikipedia: https://en.wikipedia.org/wiki/Plane_(geometry)#:~:text=In%20mathematics%2C%20a%20plane%20is,)%20and%20three%2Ddimensional%20space.
     D = det([p1.x p2.x p3.x; p1.y p2.y p3.y; p1.z p2.z p3.z])
+    #println("D ", D)
 
     if D==0
         println("crap! determinant D=0")
@@ -177,6 +185,8 @@ function get_abc_plane(p1::Coordinate, p2::Coordinate, p3::Coordinate)
     a = det([1 1 1; p1.y p2.y p3.y; p1.z p2.z p3.z])/D
     b = det([p1.x p2.x p3.x; 1 1 1; p1.z p2.z p3.z])/D
     c = det([p1.x p2.x p3.x; p1.y p2.y p3.y; 1 1 1])/D
+
+    #println([a, b, c])
 
     #normalize / make unit normal vectors
     #a = a / sqrt(a^2 + b^2 + c^2)

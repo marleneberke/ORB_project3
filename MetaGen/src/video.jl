@@ -13,7 +13,7 @@
 # possible_hallucination_map = Gen.Map(gen_possible_hallucination)
 
 function within_frame(p::Detection2D)
-    p[1] >= 0 && p[1] <= 1280 && p[2] >= 0 && p[2] <= 720 #hard-codded frame size because I can't figure out how to use two arguments and filter
+    p[1] >= 0 && p[1] <= 256 && p[2] >= 0 && p[2] <= 256 #hard-codded frame size because I can't figure out how to use two arguments and filter
 end
 
 #check if p1 and p2 are withing radius r of each other. Euclidean space
@@ -22,7 +22,7 @@ function within_radius(p1::Detection2D, p2::Detection2D, r::Float64)
 end
 
 #first approximation
-function update_alpha_beta(lesioned::Bool, alphas_old::Matrix{Int64}, betas_old::Matrix{Int64}, observations_2D, real_detections::Array{Detection2D})
+function update_alpha_beta(lesioned::Bool, alphas_old::Matrix{Int64}, betas_old::Matrix{Int64}, observations_2D, real_detections::Array{Detection2D}, params::Video_Params)
     alphas = deepcopy(alphas_old)
     betas = deepcopy(betas_old)
 
@@ -49,7 +49,7 @@ function update_alpha_beta(lesioned::Bool, alphas_old::Matrix{Int64}, betas_old:
         j = 1
         while j <= length(observations_2D_edited) #basically a for loop over observations_2D_edited while it changes sizes
             obs = observations_2D_edited[j]
-            if obs[3] == cat && within_radius(real_detection, obs, 40.)#if same category and within a distance of each other. 40 matches std on multinormal distribution for detection location
+            if obs[3] == cat && within_radius(real_detection, obs, params.sigma)#if same category and within a distance of each other. 40 matches std on gaussian distribution for detection location
                 observations_2D_edited = deleteat!(observations_2D_edited, j)
                 betas[cat, 2] = betas[cat, 2] + 1 #increase beta for detection/miss rate
                 #keep j the same because something was deleted at j
@@ -152,7 +152,7 @@ state is Tuple{Array{Any,1}, Matrix{Int64}, Matrix{Int64}}
     #could re-write with map
     #@trace(Gen.Map(rfs)(rfs_vec), :observations_2D) #gets no method matching error
     observations_2D = @trace(rfs(rfs_vec), :observations_2D) #dirty shortcut because we only have one receptive field atm
-    alphas, betas = update_alpha_beta(lesioned, state[2], state[3], observations_2D, real_detections)
+    alphas, betas = update_alpha_beta(lesioned, state[2], state[3], observations_2D, real_detections, params)
     state = (scene, alphas, betas) #just keep sending the scene in.
     return state
 end

@@ -17,13 +17,13 @@ function get_line_segment(camera_params::Camera_Params, params::Video_Params, de
     angle_from_vertical = x / (params.image_dim_x/2) * deg2rad(params.horizontal_FoV/2)
     angle_from_horizontal = -1 * y / (params.image_dim_y/2) * deg2rad(params.vertical_FoV/2)
 
-    #println("angle_from_vertical ", rad2deg(angle_from_vertical))
-    #println("angle_from_horizontal ", rad2deg(angle_from_horizontal))
+    #println("angle_from_vertical ", angle_from_vertical)
+    #println("angle_from_horizontal ", (angle_from_horizontal))
 
     #something wrong
 
     (a_vertical, b_vertical, c_vertical) = get_vertical_plane(camera_params)
-    # println((a_vertical, b_vertical, c_vertical))
+    #println("here ", (a_vertical, b_vertical, c_vertical))
     (a_horizontal, b_horizontal, c_horizontal) = get_horizontal_plane(camera_params, a_vertical, b_vertical, c_vertical)
     # println((a_horizontal, b_horizontal, c_horizontal))
     # normal_to_image = (camera_params.camera_focus.x - camera_params.camera_location.x,
@@ -57,7 +57,7 @@ function get_line_segment(camera_params::Camera_Params, params::Video_Params, de
     point = focus + x .* normalized_v + y .* normalized_h
     point = Coordinate(point[1], point[2], point[3])
 
-    #println("point ", point)
+    println("point ", point)
 
     #check each wall for an intersection within limits
     (endpoint_x, endpoint_y, endpoint_z, a, b, c) = check_walls(point, camera_params.camera_location, params)

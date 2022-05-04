@@ -8,21 +8,25 @@ using Random
 
 include("useful_functions.jl")
 
-path = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/09_18/"
+path_to_file = "/Users/marleneberke/Documents/03_Yale/Projects/001_Mask_RCNN/scratch_work_07_16_21/11_11/imagenet_data_labelled_detr.json"
 
-dict = @pipe (path * "data_labelled.json") |> open |> read |> String |> JSON.parse
+dict = @pipe path_to_file |> open |> read |> String |> JSON.parse
 
 ################################################################################
 #Set up the observations
-num_videos = 4 #total, including test set
+num_videos = 100 #total, including test set
 num_frames = 20
-threshold = 0.05
+threshold = 0.0
+
+office_subset = ["chair", "bowl"]
+
+shuffle_type = 0
 
 n_top = 5
-params = Video_Params(n_possible_objects = 5)
+params = Video_Params(n_possible_objects = length(office_subset))
 
 receptive_fields = make_receptive_fields(params)
-objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, num_videos, num_frames, threshold, n_top)
+objects_observed, camera_trajectories = make_observations_office(dict, receptive_fields, office_subset, num_videos, num_frames, threshold, n_top)
 
 ################################################################################
 #Set up for MCMC
@@ -63,6 +67,12 @@ close(online_ws_file)
 #
 println("avg_v ", avg_v)
 println("done with pf for online")
+
+#save the v-matrix to a json file
+d = Dict("avg_v" => avg_v)
+open(path*"avg_v.json","w") do f
+    JSON.print(f, d)
+end
 
 ################################################################################
 
