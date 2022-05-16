@@ -143,7 +143,7 @@ array for each frame and array for each receptive field and array for those dete
                 println("ess after pf step ", ess)
 
                 #optional rejuvination
-                (perturb_params, n_objects_per_category) = get_probs_categories(objects_observed, params, v, num_frames)
+                #(perturb_params, n_objects_per_category) = get_probs_categories(objects_observed, params, v, num_frames)
                 #println("perturb_params ", perturb_params)
                 line_segments_per_category = get_line_segments_per_category(params, objects_observed, camera_trajectories, v, num_frames)
                 #line_segments = get_line_segments(objects_observed, camera_trajectories, params, v, num_frames, num_receptive_fields, total_n_objects)
@@ -155,6 +155,8 @@ array for each frame and array for each receptive field and array for those dete
                     println("score particle i ", i, " before perturbation", get_score(state.traces[i]))
                     println("trace ", state.traces[i][:videos => v => :init_scene])
                     #println("perturb particle i ", i)
+                    perturb_params = get_probs_perturb_params_using_V(objects_observed, params, v, num_frames, state.traces[i])
+                    #perturb_params = get_probs_categories(objects_observed, params, v, num_frames)
                     state.traces[i] = perturb(lesioned, state.traces[i], v, perturb_params, mcmc_steps_outer, mcmc_steps_inner, line_segments_per_category, params)
                     #println("done perturbing i ", i)
                     println("score particle i ", i, " after perturbation", get_score(state.traces[i]))
@@ -219,7 +221,7 @@ array for each frame and array for each receptive field and array for those dete
         # println("miss rate 5 ", trace[:videos => v => :v_matrix => :miss_rate => 5 => :miss])
         #
         # println("scene at v ", trace[:videos => v => :init_scene])
-        n = length(perturb_params.probs_possible_objects)
+        n = length(params.n_possible_objects)
 
         for iter=1:mcmc_steps_outer #try 100 MH moves
             #println("iter ", iter)
@@ -418,17 +420,32 @@ array for each frame and array for each receptive field and array for those dete
             end
 
             """
-            get_probs_categories(objects_observed::Matrix{Array{Detection2D}}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
+            get_probs_perturb_params_using_V(objects_observed::Matrix{Array{Detection2D}}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
 
-            Returns a probability distribution over the object categories to be used
-            in the proposal functions.
+            Returns a pertub_params object.
+            Includes probability distribution over the object categories to be used in the proposal functions.
 
-            Derived from the objects that the visual system observes.
+
+            Derived from the objects that the visual system observes and from the current V-matrix (beliefs about which obs to trust.)
             """
 
-            function get_probs_categories(objects_observed::Matrix{Array{Detection2D}}, params::Video_Params, v::Int64, num_frames::Int64)
-                track_categories = zeros(length(params.possible_objects)) #each element will be the number of times that category was detected. adding 1
-                probabilities = zeros(length(params.possible_objects))
+            function get_probs_perturb_params_using_V(objects_observed::Matrix{Array{Detection2D}}, params::Video_Params, v::Int64, num_frames::Int64, trace)
+                num_obj_cats = length(params.possible_objects)
+
+                weights = zeros(num_obj_cats)
+                big_lambda = 0 #sum of hallucination lambdas for each object category
+                #lambdas = zeros(num_obj_cats)
+                for j = 1:num_obj_cats
+                    lambda_fa = trace[:videos => v => :v_matrix => :lambda_fa => j => :fa]
+                    miss_rate = trace[:videos => v => :v_matrix => :miss_rate => j => :miss]
+                    weights[j] = (1-miss_rate) / ((1-miss_rate) + (1-exp(-lambda_fa)))
+                    #This is P(obs|real) / (P(obs|real) + P(obs|not real)). (1-exp(-lambda_fa)) is prob of one or more hallucination
+                    #The prior, P(real), doesn't appear because it should be the same for all object categories
+                    big_lambda = big_lambda + lambda_fa
+                    #lambdas[j] = lambda_fa
+                end
+
+                track_categories = zeros(num_obj_cats) #each element will be the number of times that category was detected. adding 1
                 for f = 1:num_frames
                     #for rf = 1:num_receptive_fields
                     for (index, value) in enumerate(objects_observed[v, f])
@@ -436,19 +453,161 @@ array for each frame and array for each receptive field and array for those dete
                     end
                     #end
                 end
-                #make it so that 10% of the weight gets divided evenly among all the categories
-                other_ten_percent = sum(track_categories)/9
-                each = other_ten_percent/length(params.possible_objects)
-                probabilities = copy(track_categories)
-                probabilities = probabilities .+ each
+                total_n_detections = sum(track_categories)
 
-                #in case of no observations, make uniform
-                if sum(probabilities) == 0
-                    probabilities .= 1
+                #println("probabilities ", probabilities)
+                ####################################################################################
+                #since detections are over all 20 frames, adjust lambda
+                big_lambda = big_lambda * num_frames
+                #Calculate p_add. cdf Poisson is e^{-lambda} * Sum_i=0 to k (lambda^i / i!)
+                summation = 0
+                for i = 0:total_n_detections
+                    summation = summation + big_lambda^i / factorial(i)
+                end
+                cdfPois = exp(-1 * big_lambda) * summation
+                #p_add = (1 - params.p_objects) * cdfPois
+                p_add = 0.5 * cdfPois
+                println("p_add ", p_add)
+
+                ####################################################################################
+
+                #if there were no obs for a category, make one up.
+                for j = 1:num_obj_cats
+                    track_categories[j] = (track_categories[j]==0) ? 1 : track_categories[j]
                 end
 
-                return (Perturb_Params(probs_possible_objects = (probabilities)./sum(probabilities)), track_categories)
+                probabilities = track_categories.*weights / sum(track_categories.*weights) #weight and normalize
+                ####################################################################################
+
+                return Perturb_Params(probs_possible_objects_to_add = probabilities, p_add = p_add)
             end
+
+            # """
+            # get_probs_categories_weighted_by_V(objects_observed::Matrix{Array{Detection2D}}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
+            #
+            # Returns a probability distribution over the object categories to be used
+            # in the proposal functions.
+            #
+            # Derived from the objects that the visual system observes and from the current V-matrix (beliefs about which obs to trust.)
+            # """
+            #
+            # function get_probs_categories_weighted_by_V(objects_observed::Matrix{Array{Detection2D}}, params::Video_Params, v::Int64, num_frames::Int64, trace)
+            #     num_obj_cats = length(params.possible_objects)
+            #
+            #     weights = zeros(num_obj_cats)
+            #     for j = 1:num_obj_cats
+            #         lambda_fa = trace[:videos => v => :v_matrix => :lambda_fa => j => :fa]
+            #         miss_rate = trace[:videos => v => :v_matrix => :miss_rate => j => :miss]
+            #         weights[j] = (1-miss_rate) / ((1-miss_rate) + (1-exp(-lambda_fa)))
+            #         #This is P(obs|real) / (P(obs|real) + P(obs|not real)). (1-exp(-lambda_fa)) is prob of one or more hallucination
+            #         #The prior, P(real), doesn't appear because it should be the same for all object categories
+            #     end
+            #
+            #
+            #     track_categories = zeros(num_obj_cats) #each element will be the number of times that category was detected. adding 1
+            #     for f = 1:num_frames
+            #         #for rf = 1:num_receptive_fields
+            #         for (index, value) in enumerate(objects_observed[v, f])
+            #             track_categories[value[3]] = track_categories[value[3]]+1#category
+            #         end
+            #         #end
+            #     end
+            #
+            #     #make it so that 10% of the obs gets divided evenly among all the categories.
+            #     #like adding extra detections
+            #     # other_ten_percent = sum(track_categories)/9
+            #     # each = other_ten_percent/length(params.possible_objects)
+            #     # track_categories = track_categories .+ each
+            #
+            #     # #if there were no obs for a category, make one up.
+            #     # for j = 1:num_obj_cats
+            #     #     track_categories[j] = (track_categories[j]==0) ? 1 : track_categories[j]
+            #     # end
+            #
+            #     probabilities = track_categories.*weights / sum(track_categories.*weights) #weight and normalize
+            #
+            #     return Perturb_Params(probs_possible_objects = probabilities)
+            # end
+
+            # """
+            # get_probs_categories_using_V(objects_observed::Matrix{Array{Detection2D}}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
+            #
+            # Returns a probability distribution over the object categories to be used
+            # in the proposal functions. Also give p_add for each category, separately.
+            #
+            # Derived from the objects that the visual system observes and from the current V-matrix (beliefs about which obs to trust.)
+            # """
+            #
+            # function get_probs_perturb_params_using_V(objects_observed::Matrix{Array{Detection2D}}, params::Video_Params, v::Int64, num_frames::Int64, trace)
+            #     num_obj_cats = length(params.possible_objects)
+            #
+            #     track_categories = zeros(num_obj_cats) #each element will be the number of times that category was detected. adding 1
+            #     for f = 1:num_frames
+            #         #for rf = 1:num_receptive_fields
+            #         for (index, value) in enumerate(objects_observed[v, f])
+            #             track_categories[value[3]] = track_categories[value[3]]+1#category
+            #         end
+            #         #end
+            #     end
+            #
+            #     #if there were no obs for a category, make one up.
+            #     for j = 1:num_obj_cats
+            #         track_categories[j] = (track_categories[j]==0) ? 1 : track_categories[j]
+            #     end
+            #
+            #     probabilities = track_categories ./ sum(track_categories) #normalize
+            #     println("probs_possible_objects ", probabilities)
+            #
+            #     ################################################################
+            #     p_add_per_category = zeros(num_obj_cats)
+            #     for j = 1:num_obj_cats
+            #         lambda_fa = trace[:videos => v => :v_matrix => :lambda_fa => j => :fa]
+            #         big_lambda = lambda_fa*num_frames
+            #         #Calculate p_add. cdf Poisson is e^{-lambda} * Sum_i=0 to k (lambda^i / i!)
+            #         summation = 0
+            #         for i = 0:track_categories[j]
+            #             summation = summation + big_lambda^i / factorial(i)
+            #         end
+            #         cdfPois = exp(-1 * big_lambda) * summation
+            #         p_add_per_category[j] = 0.5 * cdfPois
+            #     end
+            #     println("p_add_per_category ", p_add_per_category)
+            #
+            #     return Perturb_Params(probs_possible_objects = probabilities, p_add_per_category = p_add_per_category)
+            # end
+
+            # """
+            # get_probs_categories(objects_observed::Matrix{Array{Detection2D}}, params::Video_Params, v::Int64, num_frames::Int64, num_receptive_fields::Int64)
+            #
+            # Returns a probability distribution over the object categories to be used
+            # in the proposal functions.
+            #
+            # Derived from the objects that the visual system observes.
+            # """
+            #
+            # function get_probs_categories(objects_observed::Matrix{Array{Detection2D}}, params::Video_Params, v::Int64, num_frames::Int64)
+            #     track_categories = zeros(length(params.possible_objects)) #each element will be the number of times that category was detected. adding 1
+            #     probabilities = zeros(length(params.possible_objects))
+            #     for f = 1:num_frames
+            #         #for rf = 1:num_receptive_fields
+            #         for (index, value) in enumerate(objects_observed[v, f])
+            #             track_categories[value[3]] = track_categories[value[3]]+1#category
+            #         end
+            #         #end
+            #     end
+            #     #make it so that 10% of the weight gets divided evenly among all the categories
+            #     other_ten_percent = sum(track_categories)/9
+            #     each = other_ten_percent/length(params.possible_objects)
+            #     probabilities = copy(track_categories)
+            #     probabilities = probabilities .+ each
+            #
+            #     #in case of no observations, make uniform
+            #     if sum(probabilities) == 0
+            #         probabilities .= 1
+            #     end
+            #
+            #     return Perturb_Params(probs_possible_objects = (probabilities)./sum(probabilities))
+            # end
 
             """
             get_line_segments_per_category(params::Video_Params, objects_observed::Matrix{Array{Detection2D}}, camera_trajectories::Matrix{Camera_Params}, v::Int64, num_frames::Int64, num_receptive_fields::Int64)

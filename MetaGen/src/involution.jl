@@ -1,3 +1,41 @@
+# """
+#     add_remove_proposal(trace, v::Int64, line_segments_per_category::Array{Array{Line_Segment,1},1}, perturb_params::Perturb_Params)
+#
+# Proposes adding or removing an object.
+#
+# Proposal function used for HMC. like split_merge_proposal.
+# """
+# @gen function add_remove_proposal(trace, v::Int64, line_segments_per_category::Array{Array{Line_Segment,1},1}, perturb_params::Perturb_Params)
+#     category = categorical(perturb_params.probs_possible_objects)
+#
+#     scene = trace[:videos => v => :init_scene]
+#     cat = zeros(length(scene)) #stores how many members of the category are in the world state already
+#     for i = 1:length(scene)
+#         cat[i] = scene[i][4]==category
+#     end
+#     n = sum(cat)
+#     #if the scene doesn't have an object of the category, can only add
+#     if n<1
+#         edit_type = {:edit_type} ~ categorical([1.0, 0.0]) #using bernoulli throws and inexact error from Gen
+#     else
+#         p_add = perturb_params.p_add_per_category[category]
+#         edit_type = {:edit_type} ~ categorical([p_add, 1-p_add])
+#     end
+#     #if add
+#     if edit_type==1
+#         temp = zeros(length(perturb_params.probs_possible_objects))
+#         temp[category] = 1.
+#         params2 = Video_Params(probs_possible_objects = temp)
+#         new = {:new} ~ new_object_distribution_noisy_or_uniform(params2, line_segments_per_category)
+#     #if remove
+#     elseif edit_type==2
+#         id = {:id} ~ categorical(cat ./ sum(cat))
+#     end
+# end
+
+
+
+
 
 """
     add_remove_proposal(trace, v::Int64, line_segments_per_category::Array{Array{Line_Segment,1},1}, perturb_params::Perturb_Params)
@@ -10,21 +48,35 @@ Proposal function used for HMC. like split_merge_proposal.
     scene = trace[:videos => v => :init_scene]
     n = length(scene)
 
+    #println("scene ", scene)
+    #println("p_add ", perturb_params.p_add)
+
     #if the scene is already empty, can only add.
     if n<1
-        edit_type = {:edit_type} ~ categorical([1.0])
+        edit_type = {:edit_type} ~ categorical([1.0, 0.0]) #using bernoulli throws and inexact error from Gen
     else
-        edit_type = {:edit_type} ~ categorical(fill(1/2, 2))
+        edit_type = {:edit_type} ~ categorical([perturb_params.p_add, 1-perturb_params.p_add])
     end
     #if add
     if edit_type==1
-        params2 = Video_Params(probs_possible_objects = perturb_params.probs_possible_objects)
+        params2 = Video_Params(probs_possible_objects = perturb_params.probs_possible_objects_to_add)
         new = {:new} ~ new_object_distribution_noisy_or_uniform(params2, line_segments_per_category)
         #println("new ", new)
         #remove
     elseif edit_type==2
-        id = {:id} ~ categorical(fill(1/n, n)) #select element to remove
-        #println("remove ", scene[id])
+        #id = {:id} ~ categorical(fill(1/n, n)) #select element to remove
+        n_cats = length(perturb_params.probs_possible_objects_to_add)
+        temp = ones(n_cats) .- perturb_params.probs_possible_objects_to_add
+        temp = temp ./ sum(temp) #normalize
+
+        probs = zeros(n)
+        for i = 1:n
+            cat = scene[i][4]
+            probs[i] = temp[cat]
+        end
+        probs = probs ./ sum(probs) #normalize
+
+        id = {:id} ~ categorical(probs)
     end
 end
 """

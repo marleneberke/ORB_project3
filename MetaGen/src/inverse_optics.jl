@@ -57,7 +57,7 @@ function get_line_segment(camera_params::Camera_Params, params::Video_Params, de
     point = focus + x .* normalized_v + y .* normalized_h
     point = Coordinate(point[1], point[2], point[3])
 
-    println("point ", point)
+    #println("point ", point)
 
     #check each wall for an intersection within limits
     (endpoint_x, endpoint_y, endpoint_z, a, b, c) = check_walls(point, camera_params.camera_location, params)

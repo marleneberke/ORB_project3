@@ -61,7 +61,9 @@ Stores a probability distribution over the object categories.
 Used for defining the proposal function.
 """
 Base.@kwdef struct Perturb_Params
-    probs_possible_objects::Vector{Float64}
+    probs_possible_objects_to_add::Vector{Float64}
+    #p_add_per_category::Vector{Float64} #p of adding object of a particular category in the involution
+    p_add::Float64
 end
 
 export Coordinate
