@@ -1,17 +1,3 @@
-# """
-#     gen_possible_hallucination(params::Video_Params, cat::Int64)
-#
-# This function takes a category and params and it returns the possible
-# objects (as 2D Detections) of that category that could be detected
-# """
-# #hallucinate objects in 2D image
-# @gen (static) function gen_possible_hallucination(params::Video_Params, cat::Int64)
-#     x = @trace(uniform(0,params.image_dim_x), :x)
-#     y = @trace(uniform(0,params.image_dim_y), :y)
-#     return (x, y, cat)
-# end
-# possible_hallucination_map = Gen.Map(gen_possible_hallucination)
-
 function within_frame(p::Detection2D)
     p[1] >= 0 && p[1] <= 256 && p[2] >= 0 && p[2] <= 256 #hard-codded frame size because I can't figure out how to use two arguments and filter
 end
@@ -21,7 +7,85 @@ function within_radius(p1::Detection2D, p2::Detection2D, r::Float64)
     sqrt((p1[1]-p2[1])^2 + (p1[2]-p2[2])^2) <= r
 end
 
-#first approximation
+# #first approximation
+# function update_alpha_beta(lesioned::Bool, alphas_old::Matrix{Int64}, betas_old::Matrix{Int64}, observations_2D, real_detections::Array{Detection2D}, params::Video_Params)
+#     alphas = deepcopy(alphas_old)
+#     betas = deepcopy(betas_old)
+#
+#     if lesioned
+#         return alphas, betas
+#     end
+#
+#     observations_2D = filter!(within_frame, observations_2D)
+#     real_detections = filter!(within_frame, real_detections)
+#
+#     #println(real_detections)
+#
+#     #lets only do this by category
+#     #real_detections_cats = last.(real_detections)
+#     #observations_2D_cats = last.(observations_2D)
+#
+#     #see if actually detected. update miss rate
+#     observations_2D_edited = deepcopy(observations_2D)
+#     #observations_2D_cats_edited = copy(observations_2D_cats)
+#     for i = 1:length(real_detections)
+#         real_detection = real_detections[i]
+#         cat = real_detection[3] #category
+#         alphas[cat, 2] = alphas[cat, 2] + 1 #increase alpha for detection/miss rate
+#         j = 1
+#         while j <= length(observations_2D_edited) #basically a for loop over observations_2D_edited while it changes sizes
+#             obs = observations_2D_edited[j]
+#             if obs[3] == cat && within_radius(real_detection, obs, params.sigma)#if same category and within a distance of each other. 40 matches std on gaussian distribution for detection location
+#                 observations_2D_edited = deleteat!(observations_2D_edited, j)
+#                 betas[cat, 2] = betas[cat, 2] + 1 #increase beta for detection/miss rate
+#                 #keep j the same because something was deleted at j
+#             else
+#                 j = j+1
+#             end
+#         end
+#     end
+#
+#
+#     #everything left in observations_2D_edited must have been hallucinated
+#     for i in 1:length(observations_2D_edited)
+#         alphas[observations_2D_edited[i][3], 1] = alphas[observations_2D_edited[i][3], 1] + 1
+#     end
+#
+#     #update beta for hallucinations
+#     betas[:, 1] = betas[:, 1] .+ 1 #add one for each frame
+#     return alphas, betas
+# end
+
+################################################################################
+"""
+Returns the nearest ground-truth 2D object of the same category of the observation
+as long as it's within a radius of sigma pixels.
+If there's no match, returns NA.
+"""
+function find_nearest(obs_2D::Detection2D, gt_2D_objs::Array{Detection2D}, params)
+    cat = obs_2D[3] #category
+    gt_2D_objs_cat = filter(x -> x[3]==cat, gt_2D_objs) #filter to those matching category
+
+    nearest = missing
+    dist = Inf
+    for i = 1:length(gt_2D_objs_cat)
+        gt = gt_2D_objs_cat[i]
+        d = sqrt((obs_2D[1] - gt[1])^2 + (obs_2D[2] - gt[2])^2) #Euclidean distance
+        if d < dist
+            nearest = gt
+            dist = d
+        end
+    end
+
+    if dist <= params.sigma
+        return nearest
+    else
+        return missing
+    end
+end
+
+
+#Match each detection to closest ground-truth object of that same category
 function update_alpha_beta(lesioned::Bool, alphas_old::Matrix{Int64}, betas_old::Matrix{Int64}, observations_2D, real_detections::Array{Detection2D}, params::Video_Params)
     alphas = deepcopy(alphas_old)
     betas = deepcopy(betas_old)
@@ -31,44 +95,99 @@ function update_alpha_beta(lesioned::Bool, alphas_old::Matrix{Int64}, betas_old:
     end
 
     observations_2D = filter!(within_frame, observations_2D)
-    real_detections = filter!(within_frame, real_detections)
+    gt_2D_objs = filter!(within_frame, real_detections)
 
-    #println(real_detections)
-
-    #lets only do this by category
-    #real_detections_cats = last.(real_detections)
-    #observations_2D_cats = last.(observations_2D)
-
-    #see if actually detected. update miss rate
-    observations_2D_edited = deepcopy(observations_2D)
-    #observations_2D_cats_edited = copy(observations_2D_cats)
-    for i = 1:length(real_detections)
-        real_detection = real_detections[i]
-        cat = real_detection[3] #category
-        alphas[cat, 2] = alphas[cat, 2] + 1 #increase alpha for detection/miss rate
-        j = 1
-        while j <= length(observations_2D_edited) #basically a for loop over observations_2D_edited while it changes sizes
-            obs = observations_2D_edited[j]
-            if obs[3] == cat && within_radius(real_detection, obs, params.sigma)#if same category and within a distance of each other. 40 matches std on gaussian distribution for detection location
-                observations_2D_edited = deleteat!(observations_2D_edited, j)
-                betas[cat, 2] = betas[cat, 2] + 1 #increase beta for detection/miss rate
-                #keep j the same because something was deleted at j
-            else
-                j = j+1
-            end
+    #track how many times each ground-truth object gets detected
+    num_times_detected = zeros(length(gt_2D_objs))
+    for i = 1:length(observations_2D)
+        obs_2D = observations_2D[i]
+        cat = obs_2D[3] #category
+        nearest_gt = find_nearest(obs_2D, gt_2D_objs, params)
+        if !ismissing(nearest_gt) #matched detection with gt
+            num_times_detected[findfirst(x->x==nearest_gt, gt_2D_objs)] += 1 #increment by 1
+        else #each unmatched detection is a hallucination
+            alphas[cat, 1] += 1
         end
     end
 
-
-    #everything left in observations_2D_edited must have been hallucinated
-    for i in 1:length(observations_2D_edited)
-        alphas[observations_2D_edited[i][3], 1] = alphas[observations_2D_edited[i][3], 1] + 1
+    for i = 1:length(gt_2D_objs)
+        gt = gt_2D_objs[i]
+        cat = gt[3] #category
+        alphas[cat, 2] += 1 #always "missed" once, like detections stopping
+        betas[cat, 2] += num_times_detected[i] #a detection
     end
 
     #update beta for hallucinations
-    betas[:, 1] = betas[:, 1] .+ 1 #add one for each frame
+    betas[:, 1] .+= 1 #add one for each frame
     return alphas, betas
 end
+
+################################################################################
+
+# #Better version below uses Hungarian algorithm. Think there's a bug
+# function cost_fxn(obs::Union{Any, Detection2D}, gt::Detection2D)
+#     d = sqrt((obs[1] - gt[1])^2 + (obs[2] - gt[2])^2)
+#     return minimum([1., (d / 362.)^2]) #don't want cost greater than 1 for a pairing
+#     #362 is diagonal of a 256 by 256 image
+# end
+#
+# function calculate_matrix(gt::Vector{Detection2D}, obs::Union{Vector{Any}, Vector{Detection2D}})
+#     matrix = Matrix{Float64}(undef, length(obs), length(gt)) #obs are like workers, gt like tasks
+#     for i = 1:length(obs)
+#         for j = 1:length(gt)
+#             matrix[i,j] = cost_fxn(obs[i], gt[j])
+#         end
+#     end
+#     return matrix
+# end
+#
+# #Better implementation using Hungarian algorithm for matching
+# function update_alpha_beta(lesioned::Bool, alphas_old::Matrix{Int64}, betas_old::Matrix{Int64}, observations_2D, real_detections::Array{Detection2D}, params::Video_Params)
+#     alphas = deepcopy(alphas_old)
+#     betas = deepcopy(betas_old)
+#
+#     if lesioned
+#         return alphas, betas
+#     end
+#
+#     obs = filter!(within_frame, observations_2D)
+#     gt = filter!(within_frame, real_detections)
+#
+#     obs_categories = last.(obs)
+#     gt_categories = last.(gt)
+#
+#     detections = zeros(params.n_possible_objects)
+#     misses = zeros(params.n_possible_objects)
+#     halls = zeros(params.n_possible_objects)
+#
+#     for category in 1:params.n_possible_objects
+# 		gt_index = findall(gt_categories .== category)
+#         obs_index = findall(obs_categories .== category)
+#
+# 		#possibility of detection
+#         if !isempty(gt_index) && !isempty(obs_index)
+# 			cost_matrix = calculate_matrix(gt[gt_index], obs[obs_index])
+#             assignment, cost = hungarian(cost_matrix)
+#             for i in 1:length(assignment)
+# 				if assignment[i] != 0 #if the observation is assigned to a gt
+# 					detected = within_radius(obs[obs_index][i], gt[gt_index][assignment[i]], params.sigma)
+# 					detections[category] = detections[category] + detected
+# 				end
+# 			end
+#         end
+# 		misses[category] = length(gt_index) - detections[category]
+# 		halls[category] = length(obs_index) - detections[category]
+#     end
+#
+# 	#update hallucination stuff
+# 	alphas[:, 1] = alphas[:, 1] .+ halls
+# 	betas[:, 1] = betas[:, 1] .+ 1 #add one for each frame
+#
+# 	#update miss stuff
+# 	alphas[:, 2] = alphas[:, 2] .+ misses
+# 	betas[:, 2] = betas[:, 2] .+ detections
+#     return alphas, betas
+# end
 
 """given a 3D detection, return BernoulliElement over a 2D detection"""
 function render(params::Video_Params, camera_params::Camera_Params, object_3D::Object3D)

@@ -25,7 +25,7 @@ Base.@kwdef struct Video_Params
     image_dim_y::Int64 = 256#720#256
     horizontal_FoV::Float64 = 55#55 #55
     vertical_FoV::Float64 = 55#31 #55
-    sigma::Float64 = 40#For MetaGen's prior over the noise in pixel space of detections
+    sigma::Float64 = 200#For MetaGen's prior over the noise in pixel space of detections
 end
 
 "Parametrizes the state of the camera, which changes within a scene"

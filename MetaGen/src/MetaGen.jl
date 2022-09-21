@@ -9,6 +9,7 @@ using Random
 using PyPlot
 const plt = PyPlot
 #import PyPlot; const plt = PyPlot
+#using Hungarian
 
 include("declaring_structs.jl")
 include("custom_distributions.jl")
